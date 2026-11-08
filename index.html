@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glass Widgets – 400KV Building</title>
+<style>
+  :root {
+    --blur: 18px;
+    --tint: 0.18;
+    --ink: #0a2a66;
+    --accent: #1e6bff;
+    --glow: #3ad0ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: #eaf2ff; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  /* ---------- Glass effect ---------- */
+  .glass {
+    position: fixed;
+    border-radius: 22px;
+    background:
+      radial-gradient(260px circle at var(--mx, 30%) var(--my, 0%), rgba(255,255,255,.55), transparent 60%),
+      linear-gradient(135deg, rgba(255,255,255,calc(var(--tint) + .22)), rgba(255,255,255,var(--tint)) 45%, rgba(120,190,255,calc(var(--tint) * .8)));
+    backdrop-filter: blur(var(--blur)) saturate(1.8) brightness(1.05);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(1.8) brightness(1.05);
+    border: 1px solid rgba(255,255,255,.65);
+    box-shadow:
+      0 12px 40px rgba(20,70,160,.22),
+      inset 0 1px 0 rgba(255,255,255,.9),
+      inset 0 -1px 0 rgba(255,255,255,.25),
+      inset 0 0 22px rgba(255,255,255,.18);
+    padding: 16px 18px;
+    overflow: hidden;
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .glass::before { /* top specular sheen */
+    content: ""; position: absolute; inset: 0 0 55% 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0));
+  }
+  .glass:hover { transform: translateY(-3px); box-shadow: 0 18px 50px rgba(20,70,160,.3), inset 0 1px 0 #fff, inset 0 0 26px rgba(255,255,255,.25); }
+  .glass > * { position: relative; }
+  .glass h1, .glass h2 { margin: 0 0 4px; }
+  .glass h1 { font-size: 20px; }
+  .glass h2 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; opacity: .7; margin-bottom: 10px; }
+  .glass p { margin: 0; font-size: 13px; opacity: .8; }
+
+  #title   { top: 20px; left: 20px; max-width: 320px; }
+  #mascot  { top: 20px; right: 20px; width: 230px; padding: 10px; }
+  #mascot video { width: 100%; border-radius: 14px; display: block; background: #fff; }
+  #mascot p { text-align: center; margin-top: 8px; font-weight: 600; color: var(--accent); }
+  #controls{ bottom: 20px; left: 20px; width: 290px; }
+  #stats   { bottom: 20px; right: 20px; min-width: 190px; }
+
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; font-size: 13px; }
+  .row label { white-space: nowrap; }
+  input[type=range] { width: 130px; accent-color: var(--accent); }
+
+  /* glass switch */
+  .switch { position: relative; width: 46px; height: 26px; flex: none; }
+  .switch input { opacity: 0; position: absolute; inset: 0; margin: 0; cursor: pointer; z-index: 2; }
+  .switch span { position: absolute; inset: 0; border-radius: 99px; background: rgba(255,255,255,.35); border: 1px solid rgba(255,255,255,.8); box-shadow: inset 0 2px 6px rgba(20,70,160,.2); transition: .25s; }
+  .switch span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(#fff,#dbe9ff); box-shadow: 0 2px 6px rgba(0,0,0,.25); transition: .25s; }
+  .switch input:checked + span { background: linear-gradient(135deg, var(--accent), var(--glow)); box-shadow: inset 0 2px 6px rgba(0,0,0,.2), 0 0 12px rgba(58,208,255,.6); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+
+  button.gbtn { width: 100%; margin-top: 6px; padding: 9px 12px; font: inherit; font-weight: 600; color: var(--ink); cursor: pointer; border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,.7), rgba(255,255,255,.25)); border: 1px solid rgba(255,255,255,.85);
+    box-shadow: 0 4px 14px rgba(20,70,160,.18), inset 0 1px 0 #fff; transition: .2s; }
+  button.gbtn:hover { box-shadow: 0 6px 20px rgba(58,208,255,.5), inset 0 1px 0 #fff; }
+  button.gbtn:active { transform: scale(.97); }
+
+  #status { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font-weight: 600; transition: opacity .5s; }
+  #status.done { opacity: 0; }
+
+  @media (max-width: 760px) {
+    #mascot { display: none; }
+    #title  { right: 20px; max-width: none; }
+    #controls { left: 12px; right: 12px; width: auto; bottom: 12px; }
+    #stats { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="status" class="glass" style="position:fixed;inset:auto;top:50%;left:50%;transform:translate(-50%,-50%);">Loading building…</div>
+
+<section class="glass" id="title">
+  <h1>400KV Building</h1>
+  <p>Connecting People with Technology</p>
+</section>
+
+<section class="glass" id="mascot">
+  <video src="mascot.mp4" autoplay muted loop playsinline></video>
+  <p>Say hi 👋</p>
+</section>
+
+<section class="glass" id="controls">
+  <h2>Controls</h2>
+  <div class="row"><label for="autorot">Auto-rotate</label><span class="switch"><input type="checkbox" id="autorot" checked><span></span></span></div>
+  <div class="row"><label for="wire">Wireframe</label><span class="switch"><input type="checkbox" id="wire"><span></span></span></div>
+  <div class="row"><label for="blur">Glass blur</label><input type="range" id="blur" min="0" max="40" value="18"></div>
+  <div class="row"><label for="tint">Glass tint</label><input type="range" id="tint" min="0" max="60" value="18"></div>
+  <button class="gbtn" id="reset">Reset view</button>
+</section>
+
+<section class="glass" id="stats">
+  <h2>Model</h2>
+  <div class="row"><span>Meshes</span><b id="s-mesh">–</b></div>
+  <div class="row"><span>Triangles</span><b id="s-tri">–</b></div>
+  <div class="row"><span>FPS</span><b id="s-fps">–</b></div>
+</section>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = id => document.getElementById(id);
+const root = document.documentElement;
+
+/* ---- glass widget interactivity: specular highlight follows pointer ---- */
+document.querySelectorAll('.glass').forEach(el => {
+  el.addEventListener('pointermove', e => {
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    el.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  });
+});
+$('blur').oninput = e => root.style.setProperty('--blur', e.target.value + 'px');
+$('tint').oninput = e => root.style.setProperty('--tint', e.target.value / 100);
+
+/* ---- three.js scene ---- */
+const renderer = new THREE.WebGLRenderer({ canvas: $('scene'), antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+// soft blue-white gradient backdrop (gives the glass something to blur)
+const bg = document.createElement('canvas'); bg.width = 2; bg.height = 256;
+const g = bg.getContext('2d'), grad = g.createLinearGradient(0, 0, 0, 256);
+grad.addColorStop(0, '#9cc6ff'); grad.addColorStop(.55, '#e4efff'); grad.addColorStop(1, '#ffffff');
+g.fillStyle = grad; g.fillRect(0, 0, 2, 256);
+scene.background = new THREE.CanvasTexture(bg);
+scene.background.colorSpace = THREE.SRGBColorSpace;
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.8;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8aa9d6, 1.4));
+const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(1, 2, 1.5); scene.add(sun);
+
+let model, home = {};
+new GLTFLoader().load(encodeURI('400KVbuilding(Arch-)REV00-3DView-{3D}.glb'), gltf => {
+  model = gltf.scene; scene.add(model);
+  let meshes = 0, tris = 0;
+  model.traverse(o => { if (o.isMesh) {
+    meshes++;
+    const geo = o.geometry; tris += (geo.index ? geo.index.count : geo.attributes.position.count) / 3;
+  }});
+  $('s-mesh').textContent = meshes.toLocaleString();
+  $('s-tri').textContent = Math.round(tris).toLocaleString();
+
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const d = Math.max(size.x, size.y, size.z) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.4;
+  home = { target: c, pos: c.clone().add(new THREE.Vector3(d * .7, d * .45, d * .7)) };
+  camera.near = d / 100; camera.far = d * 20; camera.updateProjectionMatrix();
+  resetView();
+  $('status').classList.add('done');
+}, undefined, err => { $('status').textContent = 'Could not load the building model'; console.error(err); });
+
+function resetView() { if (!home.pos) return; camera.position.copy(home.pos); controls.target.copy(home.target); controls.update(); }
+$('reset').onclick = resetView;
+$('autorot').onchange = e => controls.autoRotate = e.target.checked;
+$('wire').onchange = e => model && model.traverse(o => {
+  if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.wireframe = e.target.checked);
+});
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+let frames = 0, last = performance.now();
+renderer.setAnimationLoop(() => {
+  controls.update(); renderer.render(scene, camera);
+  frames++; const now = performance.now();
+  if (now - last > 500) { $('s-fps').textContent = Math.round(frames * 1000 / (now - last)); frames = 0; last = now; }
+});
+</script>
+</body>
+</html>
